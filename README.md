@@ -20,10 +20,13 @@ breaches.
 
 • Data Isolation: Segregates records by department(e.g., Lab vs. ER)
 to prevent unauthorized cross-team access
+
 • Identity s Accountability: Enforces strict user verification and logs
 allfile activities forfull accountability.
+
 • Secure Networking: Utilizes a central server with isolated
 processing threads to ensure stable and safe data transmission.
+
 • Controlled Operations: Assigns unique IDs to documents and
 provides a secure interface for file management, ensuring data
 remains under authorized control.
