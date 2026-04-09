@@ -1,4 +1,4 @@
-# Secure File Transfer System (SFTS)E2
+# Secure File Transfer System (SFTS)
 
 
 # Group Members
