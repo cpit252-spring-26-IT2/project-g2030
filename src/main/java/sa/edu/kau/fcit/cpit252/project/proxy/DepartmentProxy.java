@@ -24,7 +24,8 @@ public class DepartmentProxy implements Department {
         if (hasAccess()) {
             audit.log(currentUser, "Access Granted to process file in " + realDepartment.getName());
             realDepartment.processFile(fileName);
-        } else {
+        }
+        else {
             audit.log(currentUser, "SECURITY ALERT: Access Denied to " + realDepartment.getName());
             System.err.println("Transaction Blocked: " + currentUser + " does not have clearance for " + realDepartment.getName());
         }

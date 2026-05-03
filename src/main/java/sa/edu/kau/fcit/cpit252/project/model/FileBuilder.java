@@ -9,19 +9,24 @@ public class FileBuilder {
     private boolean urgent = false;
 
     public FileBuilder setId(String id) {
-        this.id = id; return this; }
+        this.id = id;
+        return this; }
 
     public FileBuilder setName(String name) {
-        this.name = name; return this; }
+        this.name = name;
+        return this; }
 
     public FileBuilder setDept(String dept) {
-        this.department = dept; return this; }
+        this.department = dept;
+        return this; }
 
     public FileBuilder setEncryption(String enc) {
-        this.encryption = enc; return this; }
+        this.encryption = enc;
+        return this; }
 
     public FileBuilder setUrgent(boolean urgent) {
-        this.urgent = urgent; return this; }
+        this.urgent = urgent;
+        return this; }
 
     public SecureFile build() {
         if (id == null || name == null)
