@@ -1,7 +1,8 @@
 package sa.edu.kau.fcit.cpit252.project.department;
 
-public interface Department {
+import sa.edu.kau.fcit.cpit252.project.model.SecureFile; // ضفنا هذي عشان يتعرف على الملف
 
+public interface Department {
     String getName();
-    void processFile(String fileName);
+    void processFile(SecureFile file); // غيرناها من String إلى SecureFile
 }

@@ -1,7 +1,8 @@
 package sa.edu.kau.fcit.cpit252.project.proxy;
+
 import sa.edu.kau.fcit.cpit252.project.department.Department;
 import sa.edu.kau.fcit.cpit252.project.logger.AuditLogger;
-
+import sa.edu.kau.fcit.cpit252.project.model.SecureFile; // لازم نضيف هذا عشان نقدر نستخدم كائن الملف
 
 public class DepartmentProxy implements Department {
     private final Department realDepartment;
@@ -19,25 +20,41 @@ public class DepartmentProxy implements Department {
     }
 
     @Override
-    public void processFile(String fileName) {
-        // The Proxy intercepts the call to check permissions first
-        if (hasAccess()) {
-            audit.log(currentUser, "Access Granted to process file in " + realDepartment.getName());
-            realDepartment.processFile(fileName);
-        }
-        else {
+    public void processFile(SecureFile file) { // التعديل هنا: صار يستقبل كائن SecureFile كامل
+
+        // 1. أول شيء نشيك إذا المستخدم عنده صلاحية يدخل القسم أساساً
+        if (!hasAccess()) {
             audit.log(currentUser, "SECURITY ALERT: Access Denied to " + realDepartment.getName());
             System.err.println("Transaction Blocked: " + currentUser + " does not have clearance for " + realDepartment.getName());
+            return; // نوقف التنفيذ هنا ما نخليه يكمل
         }
+
+        // 2. تطبيق طلب الدكتور الأول (Quantitative View Limits): نشيك إذا الملف تعدى عدد المشاهدات
+        if (!file.canView()) {
+            audit.log(currentUser, "ALERT: Max view limit reached for file: " + file.getName());
+            System.err.println("Access Revoked: The viewing limit for " + file.getName() + " has been reached.");
+            return; // نوقف التنفيذ لأن محاولات المشاهدة خلصت
+        }
+
+        // 3. تطبيق طلب الدكتور الثاني (Download Restrictions): نشيك إذا الملف للقراءة فقط
+        if (file.isViewOnly()) {
+            audit.log(currentUser, "Opened file in View-Only Secure Web Viewer");
+            System.out.println("System Notice: " + file.getName() + " is opened in a secure web-based viewer (Downloads Disabled).");
+        } else {
+            audit.log(currentUser, "Access Granted with full permissions");
+        }
+
+        // إذا كل الشروط فوق تمام، نمرر الملف للقسم الفعلي عشان يعالجه
+        realDepartment.processFile(file);
     }
 
-    // Simple access control logic
+    // نفس اللوجيك حقك في الصلاحيات ما غيرنا فيه شيء
     private boolean hasAccess() {
-        // Let's pretend only 'Admin' or 'Abdulaziz_Bukhari' can access the Laboratory
+        // قسم المختبر محمي للمستخدمين هذولي بس
         if (realDepartment.getName().equals("Laboratory")) {
             return currentUser.equals("Abdulaziz_Bukhari") || currentUser.equals("Admin");
         }
-        // Emergency Room is open access for all staff
+        // الطوارئ مفتوح للكل
         return true;
     }
 }
