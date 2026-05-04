@@ -1,5 +1,6 @@
 package sa.edu.kau.fcit.cpit252.project;
 
+import sa.edu.kau.fcit.cpit252.project.core.SFTSServer;
 import sa.edu.kau.fcit.cpit252.project.model.*;
 import sa.edu.kau.fcit.cpit252.project.department.*;
 import sa.edu.kau.fcit.cpit252.project.proxy.*;
@@ -34,6 +35,20 @@ public class Main {
         System.out.println("--- 4. Attempting Unauthorized Access ---");
         Department unauthorizedAccess = new DepartmentProxy(labDepartment, "Motaz_Alsayed");
         unauthorizedAccess.processFile("MRI_Scan_Results.pdf");
+
+        System.out.println("=== Secure File Transfer System (SFTS) Initialized ===\n");
+
+        // [أكوادك السابقة هنا للـ Builder, Factory, Proxy ...]
+
+        System.out.println("\n=== Starting Secure Networking Server ===");
+
+        // [START NEW CHANGES]
+        // هذا السطر بيشغل السيرفر ويخليه ينتظر الاتصالات
+        SFTSServer.startServer();
+
+
+
+
 
         System.out.println("\n=== System Shutting Down ===");
     }
