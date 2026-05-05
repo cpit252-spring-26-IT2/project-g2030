@@ -1,28 +1,42 @@
 package sa.edu.kau.fcit.cpit252.project.core;
+
+import java.io.*;
 import java.net.Socket;
+
 public class SFTSClient {
     public static void main(String[] args) {
-        System.out.println("=== SFTS Test Clients Starting ===");
+        System.out.println("=== SFTS Client Starting Real File Transfer ===");
 
-        // محاكاة 3 أقسام أو مستخدمين يرسلون ملفات في نفس اللحظة
-        for (int i = 1; i <= 3; i++) {
-            final int clientId = i;
+        // اسم الملف اللي بنرسله (تأكد إنه موجود في مجلد المشروع الرئيسي)
+        File fileToSend = new File("test_image.png");
 
-            // إنشاء Client Thread منفصل
-            new Thread(() -> {
-                try {
-                    System.out.println("Client " + clientId + " is attempting to connect...");
-                    // الاتصال بالسيرفر المحلي على المنفذ 8080
-                    Socket socket = new Socket("localhost", 8080);
+        if (!fileToSend.exists()) {
+            System.err.println("Error: File does not exist! Please put 'test_image.png' in the project folder.");
+            return;
+        }
 
-                    // إبقاء الاتصال مفتوح قليلاً لمحاكاة نقل البيانات
-                    Thread.sleep(500);
+        // إعداد الاتصال (إذا بتنقل لجهاز ثاني، غير "localhost" إلى IP جهاز خويك)
+        try (Socket socket = new Socket("localhost", 8080);
+             DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+             FileInputStream fis = new FileInputStream(fileToSend)) {
 
-                    socket.close();
-                } catch (Exception e) {
-                    System.err.println("Client " + clientId + " Connection Failed: " + e.getMessage());
-                }
-            }).start();
+            System.out.println("Connected to Server. Sending file: " + fileToSend.getName());
+
+            // 1. إرسال اسم وحجم الملف
+            dos.writeUTF(fileToSend.getName());
+            dos.writeLong(fileToSend.length());
+
+            // 2. قراءة الملف كـ Bytes وإرسالها
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                dos.write(buffer, 0, bytesRead);
+            }
+
+            System.out.println("File '" + fileToSend.getName() + "' sent successfully to the server!");
+
+        } catch (Exception e) {
+            System.err.println("Client Connection Error: " + e.getMessage());
         }
     }
 }
