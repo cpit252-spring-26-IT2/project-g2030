@@ -1,68 +1,66 @@
 package sa.edu.kau.fcit.cpit252.project;
 
-import sa.edu.kau.fcit.cpit252.project.core.SFTSServer;
 import sa.edu.kau.fcit.cpit252.project.model.*;
 import sa.edu.kau.fcit.cpit252.project.department.*;
 import sa.edu.kau.fcit.cpit252.project.proxy.*;
+import sa.edu.kau.fcit.cpit252.project.security.SecurityManager;
+import sa.edu.kau.fcit.cpit252.project.logger.AuditLogger;
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println("=== Secure File Transfer System (SFTS) Initialized ===\n");
+        // البداية: تهيئة نظام سجلات الرقابة (Singleton)
+        AuditLogger logger = AuditLogger.getInstance();
+        System.out.println("==================================================");
+        System.out.println("   SFTS - Secure File Transfer System    ");
+        System.out.println("==================================================\n");
 
-        // 1. Using Builder Pattern to create a new medical file
-        // 1. Using Builder Pattern
-        System.out.println("--- 1. Building Secure File ---");
-        SecureFile patientFile = new FileBuilder()
-                .setId("PT-9982")
-                .setName("MRI_Scan_Results.pdf")
-                .setDept("Laboratory")
-                .setEncryption("AES-256")
-                .setUrgent(true)
-                .setMaxViews(2) // خليناها 2 عشان نجرب الحد
-                .setViewOnly(true) // نفعل خاصية منع التحميل
-                .build();
-        System.out.println("System Log: " + patientFile.toString() + " created successfully.\n");
+        try {
+            // 1. استخدام الـ Builder Pattern لبناء ملف طبي مع خصائص التشفير والوقت
+            System.out.println("[STEP 1] Building Secure Medical File...");
+            SecureFile patientFile = new FileBuilder()
+                    .setId("PT-2026")
+                    .setName("Confidential_Scan.pdf")
+                    .setDept("Laboratory")
+                    .setEncryption("AES-256") // تم تفعيلها في الـ Builder
+                    .setExpirationHours(2)    // صلاحية الوصول للملف
+                    .build();
 
-        // 2. Using Factory Pattern to get the target department
-        System.out.println("--- 2. Routing to Department ---");
-        Department labDepartment = DepartmentFactory.getDepartment("LAB");
-        System.out.println("System Log: Routed to " + labDepartment.getName() + ".\n");
+            System.out.println("File Created: " + patientFile.getName() + " [Encrypted with " + patientFile.getEncryption() + "]");
 
-        // 3. Using Proxy Pattern (and Singleton Logger internally) for Authorized Access
-        System.out.println("--- 3. Attempting Authorized Access ---");
-        Department authorizedAccess = new DepartmentProxy(labDepartment, "Abdulaziz_Bukhari");
+            // 2. محاكاة عملية التشفير الفعلي للبيانات (AES Encryption)
+            System.out.println("\n[STEP 2] Encrypting raw data using SecurityManager...");
+            String rawContent = "Patient ID: 9982 - Diagnosis: Normal Condition";
+            byte[] encryptedData = SecurityManager.encryptData(rawContent.getBytes());
+            System.out.println("Raw Data Encrypted Successfully (Ready for Network Transfer).");
 
-        // التجربة الأولى (بتنجح ويقولك للعرض فقط)
-        authorizedAccess.processFile(patientFile);
-        System.out.println();
+            // 3. اختبار الوصول عبر الـ Proxy Pattern (السيناريو الأول: مستخدم مصرح له)
+            System.out.println("\n[STEP 3] Testing Authorization (Authorized User)...");
+            String activeUser = "Abdulaziz_Bukhari"; // أحد الأعضاء الموثوقين
+            Department lab = DepartmentFactory.getDepartment("LAB");
+            Department proxyAuthorized = new DepartmentProxy(lab, activeUser);
 
-        // التجربة الثانية (بتنجح)
-        authorizedAccess.processFile(patientFile);
-        System.out.println();
+            System.out.println("Attempting to process file as: " + activeUser);
+            proxyAuthorized.processFile(patientFile);
 
-        // التجربة الثالثة (بترفض لأن الحد الأقصى 2)
-        System.out.println("--- Attempting 3rd Access (Should Fail) ---");
-        authorizedAccess.processFile(patientFile);
-        System.out.println();
+            // 4. اختبار الوصول عبر الـ Proxy Pattern (السيناريو الثاني: مستخدم غير معروف)
+            System.out.println("\n[STEP 4] Testing Authorization (Unauthorized Access)...");
+            String unknownUser = "Hacker_External";
+            Department proxyUnauthorized = new DepartmentProxy(lab, unknownUser);
 
-        System.out.println("--- 4. Attempting Unauthorized Access ---");
-        Department unauthorizedAccess = new DepartmentProxy(labDepartment, "Motaz_Alsayed");
-        unauthorizedAccess.processFile(patientFile);
+            System.out.println("Attempting to process file as: " + unknownUser);
+            proxyUnauthorized.processFile(patientFile);
 
-        System.out.println("=== Secure File Transfer System (SFTS) Initialized ===\n");
+            // 5. فك التشفير عند الاستلام (Decryption)
+            System.out.println("\n[STEP 5] Decrypting data at Destination...");
+            byte[] decryptedData = SecurityManager.decryptData(encryptedData);
+            System.out.println("Decrypted Content: " + new String(decryptedData));
 
-        // [أكوادك السابقة هنا للـ Builder, Factory, Proxy ...]
+        } catch (Exception e) {
+            System.err.println("Critical System Error: " + e.getMessage());
+        }
 
-        System.out.println("\n=== Starting Secure Networking Server ===");
-
-        // [START NEW CHANGES]
-        // هذا السطر بيشغل السيرفر ويخليه ينتظر الاتصالات
-        SFTSServer.startServer();
-
-
-
-
-
-        System.out.println("\n=== System Shutting Down ===");
+        System.out.println("\n==================================================");
+        System.out.println("        System Process Completed Successfully     ");
+        System.out.println("==================================================");
     }
 }
