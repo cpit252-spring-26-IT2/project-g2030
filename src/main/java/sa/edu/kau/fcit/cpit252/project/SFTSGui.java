@@ -1,19 +1,20 @@
 package sa.edu.kau.fcit.cpit252.project;
 
-import sa.edu.kau.fcit.cpit252.project.model.*;
-import sa.edu.kau.fcit.cpit252.project.department.*;
-import sa.edu.kau.fcit.cpit252.project.proxy.*;
+import sa.edu.kau.fcit.cpit252.project.security.SecurityManager;
+
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
-import java.io.OutputStream;
-import java.io.PrintStream;
+import java.io.*;
+import java.net.Socket;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 
 public class SFTSGui {
     private static String loggedInUser = "";
 
-    // Authorized team members
+    // قائمة المهندسين المصرح لهم (أنت وفريقك)
     private static final List<String> AUTHORIZED_USERS = Arrays.asList(
             "Abdulaziz_Bukhari",
             "Motaz_Alsayed",
@@ -21,93 +22,124 @@ public class SFTSGui {
     );
 
     public static void main(String[] args) {
-        // 1. Initial Login Phase
+        // 1. نظام تسجيل الدخول (Authentication)
+
         String name = JOptionPane.showInputDialog(null,
-                "Enter Username to start session:",
-                "SFTS Authentication",
+                "Enter Username to access SFTS Network:",
+                "SFTS Secure Login",
                 JOptionPane.QUESTION_MESSAGE);
 
         if (name == null || name.trim().isEmpty() || !AUTHORIZED_USERS.contains(name.trim())) {
-            JOptionPane.showMessageDialog(null, "Unauthorized Access! System Locked.", "Security Alert", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Access Denied! Unauthorized user.", "Security Alert", JOptionPane.ERROR_MESSAGE);
             System.exit(0);
         }
-
         loggedInUser = name.trim();
 
-        // 2. Main Dashboard Setup
-        JFrame frame = new JFrame("SFTS Dashboard - Active User: " + loggedInUser);
+        // 2. إعداد واجهة المراقبة (Dashboard)
+
+        JFrame frame = new JFrame("SFTS Secure Client - Logged in as: " + loggedInUser);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
+        frame.setSize(850, 600);
         frame.setLayout(new BorderLayout(10, 10));
 
-        // System Log Terminal
         JTextArea logArea = new JTextArea();
         logArea.setEditable(false);
-        logArea.setBackground(Color.BLACK);
-        logArea.setForeground(new Color(0, 255, 0));
-        logArea.setFont(new Font("Monospaced", Font.BOLD, 13));
+        logArea.setBackground(new Color(15, 15, 15));
+        logArea.setForeground(new Color(0, 255, 100)); // لون أخضر تقني (Hacker style)
+        logArea.setFont(new Font("Monospaced", Font.BOLD, 14));
         frame.add(new JScrollPane(logArea), BorderLayout.CENTER);
 
-        // Redirect System.out to the logArea
         System.setOut(new PrintStream(new OutputStream() {
             public void write(int b) { logArea.append(String.valueOf((char) b)); }
         }));
 
-        // Control Panel
         JPanel panel = new JPanel(new FlowLayout());
-        JButton btnSendFile = new JButton("📤 Send New File");
-        JButton btnClear = new JButton("Clear Logs");
-        JButton btnExit = new JButton("Exit");
-
+        JButton btnSendFile = new JButton("🔒 Select & Transfer Secure File");
+        JButton btnClear = new JButton("Clear Console");
         panel.add(btnSendFile);
         panel.add(btnClear);
-        panel.add(btnExit);
         frame.add(panel, BorderLayout.NORTH);
 
-        // 3. Logic for "Send New File" Button
+
         btnSendFile.addActionListener(e -> {
-            // Step A: Ask for File Type (e.g., PDF, Image)
-            String fileType = JOptionPane.showInputDialog(frame, "Enter File Type (e.g., PDF, X-Ray):");
-            if (fileType == null || fileType.isEmpty()) return;
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Select a Document or Image");
+            // السماح بالصور والـ PDF
+            fileChooser.setFileFilter(new FileNameExtensionFilter("PDF & Images", "pdf", "png", "jpg", "jpeg"));
 
-            // Step B: Ask for File Name
-            String fileName = JOptionPane.showInputDialog(frame, "Enter File Name:");
-            if (fileName == null || fileName.isEmpty()) return;
+            if (fileChooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
 
-            // Step C: Ask for Target Department
-            String[] depts = {"LAB", "ER"};
-            String targetDept = (String) JOptionPane.showInputDialog(frame,
-                    "Select Target Department:",
-                    "Routing",
-                    JOptionPane.QUESTION_MESSAGE,
-                    null, depts, depts[0]);
+                // === لوحة الإعدادات الأمنية (Security Policies) ===
+                JPanel setupPanel = new JPanel(new GridLayout(5, 2, 5, 5));
+                JTextField ipField = new JTextField("localhost");
+                JComboBox<Integer> expBox = new JComboBox<>(new Integer[]{0, 2, 4, 8, 24}); // 0 يعني لا ينتهي
+                JTextField viewsField = new JTextField("0"); // 0 يعني مفتوح
+                JCheckBox viewOnlyCheck = new JCheckBox("Force View-Only Mode (RAM-based)");
 
-            if (targetDept == null) return;
+                setupPanel.add(new JLabel("Receiver IP Address:")); setupPanel.add(ipField);
+                setupPanel.add(new JLabel("Expiration (Hours):")); setupPanel.add(expBox);
+                setupPanel.add(new JLabel("Max Views Limit:")); setupPanel.add(viewsField);
+                setupPanel.add(new JLabel("Download Restrictions:")); setupPanel.add(viewOnlyCheck);
 
-            // Step D: Execute Transfer Logic using Patterns
-            System.out.println("\n[USER ACTION]: Initiating transfer for " + fileName + " (" + fileType + ")");
+                int result = JOptionPane.showConfirmDialog(frame, setupPanel, "SFTS Security Configuration", JOptionPane.OK_CANCEL_OPTION);
 
-            // 1. Use Builder to create the dynamic file
-            SecureFile userFile = new FileBuilder()
-                    .setId("GEN-" + (int)(Math.random()*1000))
-                    .setName(fileName + "." + fileType.toLowerCase())
-                    .setDept(targetDept.equals("LAB") ? "Laboratory" : "Emergency Room")
-                    .build();
+                if (result == JOptionPane.OK_OPTION) {
+                    new Thread(() -> {
+                        try {
+                            String targetIP = ipField.getText().trim();
+                            int expHours = (Integer) expBox.getSelectedItem();
+                            int maxViews = Integer.parseInt(viewsField.getText().trim());
+                            boolean isViewOnly = viewOnlyCheck.isSelected();
 
-            // 2. Use Factory to get the department object
-            Department destination = DepartmentFactory.getDepartment(targetDept);
+                            if (expHours > 0 || maxViews > 0) {
+                                isViewOnly = true;
+                            }
 
-            // 3. Use Proxy to handle security and processing
-            Department proxy = new DepartmentProxy(destination, loggedInUser);
-            proxy.processFile(userFile);
+                            System.out.println("\n------------------------------------------------");
+                            System.out.println("[USER] Initiating secure transfer for: " + selectedFile.getName());
+                            System.out.println("[POLICY] Expiry: " + expHours + "h | Max Views: " + maxViews + " | ViewOnly: " + isViewOnly);
+
+                            // قراءة الملف والتشفير
+                            byte[] originalBytes = Files.readAllBytes(selectedFile.toPath());
+                            System.out.println("[SECURITY] Encrypting raw data with AES-256...");
+                            byte[] encryptedBytes = SecurityManager.encryptData(originalBytes);
+
+                            // الاتصال عبر الشبكة
+                            System.out.println("[NETWORK] Connecting to " + targetIP + ":8080...");
+                            Socket socket = new Socket(targetIP, 8080);
+                            DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+
+                            // إرسال البيانات بترتيب دقيق (يتطابق مع ClientHandler)
+                            dos.writeUTF(selectedFile.getName());          // 1. الاسم
+                            dos.writeLong(encryptedBytes.length);          // 2. الحجم المشفر
+                            dos.writeInt(expHours);                        // 3. الساعات
+                            dos.writeInt(maxViews);                        // 4. عدد المشاهدات
+                            dos.writeBoolean(isViewOnly);                  // 5. وضع القراءة فقط
+                            dos.write(encryptedBytes);                     // 6. البيانات المشفرة
+                            dos.flush();
+
+                            // إغلاق الاتصال
+                            dos.close();
+                            socket.close();
+
+                            System.out.println("[SUCCESS] Encrypted payload securely transmitted!");
+                            System.out.println("------------------------------------------------\n");
+
+                        } catch (NumberFormatException nfe) {
+                            System.err.println("[ERROR] Please enter a valid number for Max Views.");
+                        } catch (Exception ex) {
+                            System.err.println("[ERROR] Transfer Failed: Make sure the Server is running! Details: " + ex.getMessage());
+                        }
+                    }).start();
+                }
+            }
         });
 
         btnClear.addActionListener(e -> logArea.setText(""));
-        btnExit.addActionListener(e -> System.exit(0));
 
-        System.out.println("Login Successful. Welcome back, " + loggedInUser + ".");
-        System.out.println("Ready to process secure transfers...\n");
-
+        System.out.println("=== SFTS Core Client Initialized Successfully ===");
+        System.out.println("System is ready for encrypted network transfers.\n");
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
