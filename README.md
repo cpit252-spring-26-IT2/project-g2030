@@ -36,3 +36,18 @@ To ensure a scalable, secure, and maintainable foundation, the core system archi
 
 ---
 
+Key Technical Features:
+
+Advanced Encryption (AES-256): Ensures all file data is encrypted during transmission to prevent interception and unauthorized access.
+
+Secure RAM Vault: A sophisticated server interface that processes and displays files directly from temporary memory (RAM), ensuring no sensitive data is saved to the physical disk.
+
+Dynamic Security Features:
+
+Quantitative View Limits: Automatically revokes access once a file reaches a predefined view count.
+
+Time-Limited Access: Implements automatic file expiration after a specific duration to minimize data exposure.
+
+Download Restrictions (View-Only Mode): Enables users to preview documents in a secure viewer while disabling local save and download options.
+
+---
