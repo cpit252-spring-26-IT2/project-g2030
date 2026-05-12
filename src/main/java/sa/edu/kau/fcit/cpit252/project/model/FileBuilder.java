@@ -1,54 +1,122 @@
 package sa.edu.kau.fcit.cpit252.project.model;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public class FileBuilder {
-    private String id;
-    private String name;
-    private String department;
-    private String sourcePath;
-    private String targetIP = "localhost";
-    private LocalDateTime expirationTime = null;
-    private String encryption = "None";
-    private boolean viewOnly = false;
-    private int maxViews = 0;
+    private final SecureFile secureFile;
 
-    public FileBuilder setId(String id) {
-        this.id = id; return this; }
+    public FileBuilder() {
+        this.secureFile = new SecureFile();
+        this.secureFile.setFileId(generateFileId());
+    }
 
-    public FileBuilder setName(String name) {
-        this.name = name; return this; }
+    public FileBuilder setFileId(String fileId) {
+        secureFile.setFileId(fileId);
+        return this;
+    }
 
-    public FileBuilder setDept(String dept) {
-        this.department = dept; return this; }
+    public FileBuilder setFileName(String fileName) {
+        secureFile.setFileName(fileName);
+        return this;
+    }
 
-    public FileBuilder setSourcePath(String sourcePath)
-    { this.sourcePath = sourcePath; return this; }
+    public FileBuilder setFileType(String fileType) {
+        secureFile.setFileType(fileType);
+        return this;
+    }
 
-    public FileBuilder setTargetIP(String ip) {
-        this.targetIP = ip; return this; }
+    public FileBuilder setDepartment(String department) {
+        secureFile.setDepartment(department);
+        return this;
+    }
 
-    public FileBuilder setEncryption(String encryption)
-    { this.encryption = encryption; return this; }
+    public FileBuilder setOwnerId(String ownerId) {
+        secureFile.setOwnerId(ownerId);
+        return this;
+    }
 
-    public FileBuilder setExpirationHours(int hours) {
-        if (hours > 0) {
-            this.expirationTime = LocalDateTime.now().plusHours(hours);
-        }
+    public FileBuilder setContent(String content) {
+        secureFile.setContent(content);
+        return this;
+    }
+
+    public FileBuilder setEncrypted(boolean encrypted) {
+        secureFile.setEncrypted(encrypted);
+        return this;
+    }
+
+    public FileBuilder setEncryptionType(String encryptionType) {
+        secureFile.setEncryptionType(encryptionType);
         return this;
     }
 
     public FileBuilder setViewOnly(boolean viewOnly) {
-        this.viewOnly = viewOnly;
+        secureFile.setViewOnly(viewOnly);
         return this;
     }
 
     public FileBuilder setMaxViews(int maxViews) {
-        this.maxViews = maxViews;
+        secureFile.setMaxViews(maxViews);
+        return this;
+    }
+
+    public FileBuilder setExpiryTime(LocalDateTime expiryTime) {
+        secureFile.setExpiryTime(expiryTime);
+        return this;
+    }
+
+    public FileBuilder setWatermarkText(String watermarkText) {
+        secureFile.setWatermarkText(watermarkText);
+        return this;
+    }
+
+    public FileBuilder setCreatedAt(LocalDateTime createdAt) {
+        secureFile.setCreatedAt(createdAt);
         return this;
     }
 
     public SecureFile build() {
-        return new SecureFile(id, name, department, sourcePath, targetIP, expirationTime, encryption, viewOnly, maxViews);
+        validateMandatoryFields();
+        applyDefaults();
+        return secureFile;
+    }
+
+    private void validateMandatoryFields() {
+        if (secureFile.getFileName() == null || secureFile.getFileName().isBlank()) {
+            throw new IllegalStateException("File name is required.");
+        }
+
+        if (secureFile.getDepartment() == null || secureFile.getDepartment().isBlank()) {
+            throw new IllegalStateException("Department is required.");
+        }
+
+        if (secureFile.getOwnerId() == null || secureFile.getOwnerId().isBlank()) {
+            throw new IllegalStateException("Owner ID is required.");
+        }
+
+        if (secureFile.getContent() == null) {
+            throw new IllegalStateException("Content is required.");
+        }
+    }
+
+    private void applyDefaults() {
+        if (secureFile.getFileType() == null || secureFile.getFileType().isBlank()) {
+            secureFile.setFileType("txt");
+        }
+
+        if (!secureFile.isEncrypted()) {
+            secureFile.setEncryptionType("NONE");
+        } else if (secureFile.getEncryptionType() == null || secureFile.getEncryptionType().isBlank()) {
+            secureFile.setEncryptionType("AES-256");
+        }
+
+        if (secureFile.getWatermarkText() == null || secureFile.getWatermarkText().isBlank()) {
+            secureFile.setWatermarkText("Confidential - " + secureFile.getOwnerId());
+        }
+    }
+
+    private String generateFileId() {
+        return "FILE-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 }

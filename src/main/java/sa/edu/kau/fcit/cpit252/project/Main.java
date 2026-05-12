@@ -6,6 +6,8 @@ import sa.edu.kau.fcit.cpit252.project.proxy.*;
 import sa.edu.kau.fcit.cpit252.project.security.SecurityManager;
 import sa.edu.kau.fcit.cpit252.project.logger.AuditLogger;
 
+import java.time.LocalDateTime;
+
 public class Main {
     public static void main(String[] args) {
         // البداية: تهيئة نظام سجلات الرقابة (Singleton)
@@ -18,14 +20,14 @@ public class Main {
             // 1. استخدام الـ Builder Pattern لبناء ملف طبي مع خصائص التشفير والوقت
             System.out.println("[STEP 1] Building Secure Medical File...");
             SecureFile patientFile = new FileBuilder()
-                    .setId("PT-2026")
-                    .setName("Confidential_Scan.pdf")
-                    .setDept("Laboratory")
-                    .setEncryption("AES-256") // تم تفعيلها في الـ Builder
-                    .setExpirationHours(2)    // صلاحية الوصول للملف
+                    .setFileId("PT-2026")
+                    .setFileName("Confidential_Scan.pdf")
+                    .setDepartment("Laboratory")
+                    .setEncryptionType("AES-256") // تم تفعيلها في الـ Builder
+                    .setExpiryTime(LocalDateTime.now().plusHours(2))   // صلاحية الوصول للملف
                     .build();
 
-            System.out.println("File Created: " + patientFile.getName() + " [Encrypted with " + patientFile.getEncryption() + "]");
+            System.out.println("File Created: " + patientFile.getFileName() + " [Encrypted with " + patientFile.getEncryptionType() + "]");
 
             // 2. محاكاة عملية التشفير الفعلي للبيانات (AES Encryption)
             System.out.println("\n[STEP 2] Encrypting raw data using SecurityManager...");
