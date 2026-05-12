@@ -10,6 +10,6 @@ public class ERDepartment implements Department {
 
     @Override
     public void processFile(SecureFile file) {
-        System.out.println("ER System: Prioritizing vitals for " + file.getName());
+        System.out.println("ER System: Prioritizing vitals for " + file.getFileName());
     }
 }

@@ -29,16 +29,16 @@ public class DepartmentProxy implements Department {
         }
 
         // 2. تطبيق طلب الدكتور الأول (Quantitative View Limits): نشيك إذا الملف تعدى عدد المشاهدات
-        if (!file.canView()) {
-            audit.log(currentUser, "ALERT: Max view limit reached for file: " + file.getName());
-            System.err.println("Access Revoked: The viewing limit for " + file.getName() + " has been reached.");
+        if (!file.openFile()) {
+            audit.log(currentUser, "ALERT: Max view limit reached for file: " + file.getFileName());
+            System.err.println("Access Revoked: The viewing limit for " + file.getFileName() + " has been reached.");
             return;
         }
 
         // 3. تطبيق طلب الدكتور الثاني (Download Restrictions): نشيك إذا الملف للقراءة فقط
         if (file.isViewOnly()) {
             audit.log(currentUser, "Opened file in View-Only Secure Web Viewer");
-            System.out.println("System Notice: " + file.getName() + " is opened in a secure web-based viewer (Downloads Disabled).");
+            System.out.println("System Notice: " + file.getFileName() + " is opened in a secure web-based viewer (Downloads Disabled).");
         } else {
             audit.log(currentUser, "Access Granted with full permissions");
         }

@@ -10,6 +10,6 @@ public class LabDepartment implements Department {
 
     @Override
     public void processFile(SecureFile file) {
-        System.out.println("Lab System: Analyzing results for " + file.getName());
+        System.out.println("Lab System: Analyzing results for " + file.getFileName());
     }
 }
