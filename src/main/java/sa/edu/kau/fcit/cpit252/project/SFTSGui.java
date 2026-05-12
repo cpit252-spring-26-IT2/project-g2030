@@ -230,19 +230,19 @@ public class SFTSGui extends JFrame {
         }
 
         if (currentFile.getVersions().isEmpty()) {
-            log("No versions available.");
+            log("No versions available for this file.");
             return;
         }
 
-        StringBuilder builder = new StringBuilder("File Versions:\n");
-        for (FileVersion version : currentFile.getVersions()) {
-            builder.append("Version #").append(version.getVersionNumber())
-                    .append(" | Updated By: ").append(version.getUpdatedBy())
-                    .append(" | Time: ").append(formatDateTime(version.getCreatedAt()))
-                    .append("\n");
+        log("=== File Versions ===");
+        for (Object obj : currentFile.getVersions()) {
+            FileVersion version = (FileVersion) obj;
+            log("Version #" + version.getVersionNumber()
+                    + " | Updated By: " + version.getUpdatedBy()
+                    + " | Time: " + formatDateTime(version.getCreatedAt()));
+            log("Content Snapshot: " + version.getContentSnapshot());
+            log("---------------------------");
         }
-
-        log(builder.toString());
     }
 
     private void restoreVersion() {
@@ -251,8 +251,14 @@ public class SFTSGui extends JFrame {
             return;
         }
 
+        if (currentFile.getVersions().isEmpty()) {
+            showError("No versions available to restore.");
+            return;
+        }
+
         String input = JOptionPane.showInputDialog(this, "Enter version number to restore:");
         if (input == null || input.trim().isBlank()) {
+            showError("Version number is required.");
             return;
         }
 
@@ -263,11 +269,11 @@ public class SFTSGui extends JFrame {
             if (restored != null) {
                 contentArea.setText(currentFile.getContent());
                 log("Version #" + versionNumber + " restored successfully.");
+                log("Restored content: " + restored.getContentSnapshot());
             } else {
                 showError("Version not found.");
             }
-
-        } catch (NumberFormatException ex) {
+        } catch (NumberFormatException e) {
             showError("Invalid version number.");
         }
     }
