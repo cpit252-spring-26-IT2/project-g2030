@@ -1,300 +1,177 @@
 package sa.edu.kau.fcit.cpit252.project;
 
-import sa.edu.kau.fcit.cpit252.project.model.FileBuilder;
+import sa.edu.kau.fcit.cpit252.project.core.DepartmentServer;
 import sa.edu.kau.fcit.cpit252.project.model.FileVersion;
 import sa.edu.kau.fcit.cpit252.project.model.SecureFile;
 
 import javax.swing.*;
 import java.awt.*;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SFTSGui extends JFrame {
 
-    private SecureFile currentFile;
-
-    private final JTextField fileNameField = new JTextField();
-    private final JComboBox<String> departmentComboBox = new JComboBox<>(new String[]{"Laboratory", "ER", "Radiology", "Pharmacy"});    private final JTextField ownerIdField = new JTextField();
-    private final JTextField fileTypeField = new JTextField("txt");
-    private final JTextField maxViewsField = new JTextField("3");
-    private final JTextField expiryHoursField = new JTextField("4");
-    private final JTextField watermarkField = new JTextField();
-    private final JCheckBox encryptedCheckBox = new JCheckBox("Encrypted");
-    private final JCheckBox viewOnlyCheckBox = new JCheckBox("View Only");
-    private final JTextArea contentArea = new JTextArea(8, 40);
-
-    private final JTextArea outputArea = new JTextArea(14, 50);
-
-    private final JButton createButton = new JButton("Create File");
-    private final JButton openButton = new JButton("Open File");
-    private final JButton updateButton = new JButton("Update File");
-    private final JButton deleteButton = new JButton("Move to Recycle Bin");
-    private final JButton recoverButton = new JButton("Recover File");
-    private final JButton versionsButton = new JButton("Show Versions");
-    private final JButton restoreVersionButton = new JButton("Restore Version #");
+    public static void launchAdminPanel() {
+        SwingUtilities.invokeLater(() -> new SFTSGui().setVisible(true));
+    }
 
     public SFTSGui() {
-        setTitle("Secure File Transfer System (SFTS)");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(900, 700);
+        setTitle("Admin - Trash, Recover & Versions");
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setSize(1100, 650);
         setLocationRelativeTo(null);
-
+        if (!login()) { dispose(); return; }
         initLayout();
-        initActions();
+    }
+
+    // جمع الملفات من كل السيرفرات المشغلة
+    private List<SecureFile> getAllFiles() {
+        List<SecureFile> all = new ArrayList<>();
+        for (int port : DepartmentServer.DEPT_PORTS.values()) {
+            DepartmentServer srv = DepartmentServer.getByPort(port);
+            if (srv != null) all.addAll(srv.getAllFilesSnapshot());
+        }
+        return all;
+    }
+
+    private String getSender(SecureFile file) {
+        for (int port : DepartmentServer.DEPT_PORTS.values()) {
+            DepartmentServer srv = DepartmentServer.getByPort(port);
+            if (srv != null) {
+                String sender = srv.getSenderForFile(file.getFileId());
+                if (sender != null) return sender;
+            }
+        }
+        return file.getOwnerId();
+    }
+
+    private boolean login() {
+        JPanel panel = new JPanel(new GridLayout(2, 2, 8, 8));
+        JTextField userField = new JTextField();
+        JPasswordField passField = new JPasswordField();
+        panel.add(new JLabel("User ID:"));  panel.add(userField);
+        panel.add(new JLabel("Password:")); panel.add(passField);
+        int result = JOptionPane.showConfirmDialog(this, panel, "Admin Login",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        return result == JOptionPane.OK_OPTION
+                && "admin".equals(userField.getText().trim())
+                && "admin".equals(new String(passField.getPassword()).trim());
     }
 
     private void initLayout() {
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        DefaultListModel<SecureFile> model = new DefaultListModel<>();
+        for (SecureFile f : getAllFiles()) model.addElement(f);
 
-        JPanel formPanel = new JPanel(new GridLayout(0, 2, 8, 8));
-        formPanel.setBorder(BorderFactory.createTitledBorder("File Configuration"));
-
-        formPanel.add(new JLabel("File Name:"));
-        formPanel.add(fileNameField);
-
-        formPanel.add(new JLabel("Department:"));
-        formPanel.add(departmentComboBox);
-
-        formPanel.add(new JLabel("Owner ID:"));
-        formPanel.add(ownerIdField);
-
-        formPanel.add(new JLabel("File Type:"));
-        formPanel.add(fileTypeField);
-
-        formPanel.add(new JLabel("Max Views:"));
-        formPanel.add(maxViewsField);
-
-        formPanel.add(new JLabel("Expiry (Hours):"));
-        formPanel.add(expiryHoursField);
-
-        formPanel.add(new JLabel("Watermark Text:"));
-        formPanel.add(watermarkField);
-
-        formPanel.add(new JLabel("Encrypted:"));
-        formPanel.add(encryptedCheckBox);
-
-        formPanel.add(new JLabel("View Only:"));
-        formPanel.add(viewOnlyCheckBox);
-
-        JPanel contentPanel = new JPanel(new BorderLayout());
-        contentPanel.setBorder(BorderFactory.createTitledBorder("File Content"));
-        contentArea.setLineWrap(true);
-        contentArea.setWrapStyleWord(true);
-        contentPanel.add(new JScrollPane(contentArea), BorderLayout.CENTER);
-
-        JPanel buttonsPanel = new JPanel(new GridLayout(2, 4, 8, 8));
-        buttonsPanel.setBorder(BorderFactory.createTitledBorder("Actions"));
-        buttonsPanel.add(createButton);
-        buttonsPanel.add(openButton);
-        buttonsPanel.add(updateButton);
-        buttonsPanel.add(deleteButton);
-        buttonsPanel.add(recoverButton);
-        buttonsPanel.add(versionsButton);
-        buttonsPanel.add(restoreVersionButton);
-
-        outputArea.setEditable(false);
-        outputArea.setLineWrap(true);
-        outputArea.setWrapStyleWord(true);
-
-        JPanel outputPanel = new JPanel(new BorderLayout());
-        outputPanel.setBorder(BorderFactory.createTitledBorder("System Output"));
-        outputPanel.add(new JScrollPane(outputArea), BorderLayout.CENTER);
-
-        JPanel topPanel = new JPanel(new BorderLayout(10, 10));
-        topPanel.add(formPanel, BorderLayout.NORTH);
-        topPanel.add(contentPanel, BorderLayout.CENTER);
-
-        mainPanel.add(topPanel, BorderLayout.NORTH);
-        mainPanel.add(buttonsPanel, BorderLayout.CENTER);
-        mainPanel.add(outputPanel, BorderLayout.SOUTH);
-
-        add(mainPanel);
-    }
-
-    private void initActions() {
-        createButton.addActionListener(e -> createFile());
-        openButton.addActionListener(e -> openFile());
-        updateButton.addActionListener(e -> updateFile());
-        deleteButton.addActionListener(e -> deleteFile());
-        recoverButton.addActionListener(e -> recoverFile());
-        versionsButton.addActionListener(e -> showVersions());
-        restoreVersionButton.addActionListener(e -> restoreVersion());
-    }
-
-    private void createFile() {
-        try {
-            String fileName = fileNameField.getText().trim();
-            String department = (String) departmentComboBox.getSelectedItem();
-            String ownerId = ownerIdField.getText().trim();
-            String fileType = fileTypeField.getText().trim();
-            String watermark = watermarkField.getText().trim();
-            String content = contentArea.getText();
-
-            int maxViews = Integer.parseInt(maxViewsField.getText().trim());
-            int expiryHours = Integer.parseInt(expiryHoursField.getText().trim());
-
-            currentFile = new FileBuilder()
-                    .setFileName(fileName)
-                    .setDepartment(department)
-                    .setOwnerId(ownerId)
-                    .setFileType(fileType)
-                    .setContent(content)
-                    .setEncrypted(encryptedCheckBox.isSelected())
-                    .setViewOnly(viewOnlyCheckBox.isSelected())
-                    .setMaxViews(maxViews)
-                    .setExpiryTime(LocalDateTime.now().plusHours(expiryHours))
-                    .setWatermarkText(watermark.isBlank() ? "Viewed by " + ownerId : watermark)
-                    .build();
-
-            log("File created successfully.");
-            log(currentFile.toString());
-
-        } catch (Exception ex) {
-            showError("Failed to create file: " + ex.getMessage());
-        }
-    }
-
-    private void openFile() {
-        if (currentFile == null) {
-            showError("Please create a file first.");
-            return;
-        }
-
-        if (currentFile.openFile()) {
-            log("File opened successfully.");
-            log(currentFile.getDisplayContent());
-            log("View count: " + currentFile.getViewCount() + "/" + currentFile.getMaxViews());
-        } else {
-            log("Access denied: file cannot be opened.");
-            if (currentFile.isDeleted()) {
-                log("Reason: file is in recycle bin.");
-            } else if (currentFile.isAccessRevoked()) {
-                log("Reason: access revoked, expired, or max views reached.");
+        JList<SecureFile> list = new JList<>(model);
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        list.setFont(new Font("Monospaced", Font.PLAIN, 13));
+        list.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                                                          int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof SecureFile file) {
+                    String expiry = file.getExpiryTime() != null
+                            ? file.getExpiryTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                            : "N/A";
+                    setText("[" + file.getDepartment() + "] " + file.getFileName()
+                            + " | Expiry: " + expiry
+                            + (file.isDeleted() ? " [DELETED]" : " [ACTIVE]"));
+                }
+                return this;
             }
-        }
-    }
+        });
 
-    private void updateFile() {
-        if (currentFile == null) {
-            showError("Please create a file first.");
-            return;
-        }
+        JTextArea logArea = new JTextArea();
+        logArea.setEditable(false);
+        logArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
 
-        if (currentFile.isDeleted()) {
-            showError("Cannot update a deleted file.");
-            return;
-        }
+        JButton refreshButton    = new JButton("Refresh");
+        JButton recoverButton    = new JButton("Recover File");
+        JButton versionsButton   = new JButton("Show Versions");
+        JButton addVersionButton = new JButton("Create Version");
 
-        String updatedBy = JOptionPane.showInputDialog(this, "Enter updater ID:");
-        if (updatedBy == null || updatedBy.trim().isBlank()) {
-            showError("Updater ID is required.");
-            return;
-        }
+        refreshButton.addActionListener(e -> {
+            model.clear();
+            for (SecureFile f : getAllFiles()) model.addElement(f);
+            logArea.setText(buildLogs());
+        });
 
-        String newContent = contentArea.getText();
-        currentFile.addVersion(newContent, updatedBy.trim());
+        recoverButton.addActionListener(e -> {
+            SecureFile file = list.getSelectedValue();
+            if (file == null) { JOptionPane.showMessageDialog(this, "Select a file first."); return; }
+            if (!file.isDeleted()) { JOptionPane.showMessageDialog(this, "File is not deleted."); return; }
+            file.recoverFromRecycleBin();
+            JOptionPane.showMessageDialog(this, "File recovered successfully.");
+            refreshButton.doClick();
+        });
 
-        log("File updated successfully.");
-        log("New version created. Total versions: " + currentFile.getVersions().size());
-    }
-
-    private void deleteFile() {
-        if (currentFile == null) {
-            showError("Please create a file first.");
-            return;
-        }
-
-        currentFile.moveToRecycleBin();
-        log("File moved to recycle bin at: " + formatDateTime(currentFile.getDeletedAt()));
-    }
-
-    private void recoverFile() {
-        if (currentFile == null) {
-            showError("Please create a file first.");
-            return;
-        }
-
-        if (!currentFile.isDeleted()) {
-            showError("File is not deleted.");
-            return;
-        }
-
-        currentFile.recoverFromRecycleBin();
-        log("File recovered successfully from recycle bin.");
-    }
-
-    private void showVersions() {
-        if (currentFile == null) {
-            showError("Please create a file first.");
-            return;
-        }
-
-        if (currentFile.getVersions().isEmpty()) {
-            log("No versions available for this file.");
-            return;
-        }
-
-        log("=== File Versions ===");
-        for (Object obj : currentFile.getVersions()) {
-            FileVersion version = (FileVersion) obj;
-            log("Version #" + version.getVersionNumber()
-                    + " | Updated By: " + version.getUpdatedBy()
-                    + " | Time: " + formatDateTime(version.getCreatedAt()));
-            log("Content Snapshot: " + version.getContentSnapshot());
-            log("---------------------------");
-        }
-    }
-
-    private void restoreVersion() {
-        if (currentFile == null) {
-            showError("Please create a file first.");
-            return;
-        }
-
-        if (currentFile.getVersions().isEmpty()) {
-            showError("No versions available to restore.");
-            return;
-        }
-
-        String input = JOptionPane.showInputDialog(this, "Enter version number to restore:");
-        if (input == null || input.trim().isBlank()) {
-            showError("Version number is required.");
-            return;
-        }
-
-        try {
-            int versionNumber = Integer.parseInt(input.trim());
-            FileVersion restored = currentFile.restoreVersion(versionNumber);
-
-            if (restored != null) {
-                contentArea.setText(currentFile.getContent());
-                log("Version #" + versionNumber + " restored successfully.");
-                log("Restored content: " + restored.getContentSnapshot());
-            } else {
-                showError("Version not found.");
+        versionsButton.addActionListener(e -> {
+            SecureFile file = list.getSelectedValue();
+            if (file == null) { JOptionPane.showMessageDialog(this, "Select a file first."); return; }
+            if (file.getVersions().isEmpty()) { JOptionPane.showMessageDialog(this, "No versions available."); return; }
+            StringBuilder sb = new StringBuilder("Versions for: " + file.getFileName() + "\n\n");
+            for (FileVersion ver : file.getVersions()) {
+                sb.append("Version #").append(ver.getVersionNumber())
+                        .append(" | By: ").append(ver.getUpdatedBy())
+                        .append(" | At: ").append(ver.getCreatedAt()
+                                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                        .append("\n").append(ver.getContentSnapshot()).append("\n\n");
             }
-        } catch (NumberFormatException e) {
-            showError("Invalid version number.");
+            JTextArea ta = new JTextArea(sb.toString());
+            ta.setEditable(false);
+            ta.setFont(new Font("Monospaced", Font.PLAIN, 13));
+            JOptionPane.showMessageDialog(this, new JScrollPane(ta), "Versions",
+                    JOptionPane.INFORMATION_MESSAGE);
+        });
+
+        addVersionButton.addActionListener(e -> {
+            SecureFile file = list.getSelectedValue();
+            if (file == null) { JOptionPane.showMessageDialog(this, "Select a file first."); return; }
+            String newContent = JOptionPane.showInputDialog(this,
+                    "Enter new content / notes for this version:", "Create Version",
+                    JOptionPane.PLAIN_MESSAGE);
+            if (newContent == null || newContent.isBlank()) return;
+            file.addVersion(newContent, "admin");
+            JOptionPane.showMessageDialog(this,
+                    "Version #" + file.getVersions().size() + " created successfully.");
+            refreshButton.doClick();
+        });
+
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                new JScrollPane(list), new JScrollPane(logArea));
+        split.setDividerLocation(400);
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        bottom.add(refreshButton);
+        bottom.add(recoverButton);
+        bottom.add(versionsButton);
+        bottom.add(addVersionButton);
+
+        add(split, BorderLayout.CENTER);
+        add(bottom, BorderLayout.SOUTH);
+        refreshButton.doClick();
+    }
+
+    private String buildLogs() {
+        StringBuilder sb = new StringBuilder("=== Recycle Bin & Activity Logs ===\n\n");
+        for (SecureFile file : getAllFiles()) {
+            sb.append("File      : ").append(file.getFileName()).append("\n");
+            sb.append("Sender    : ").append(getSender(file)).append("\n");
+            sb.append("Viewer    : ").append(file.getWatermarkText() != null
+                    ? file.getWatermarkText() : "N/A").append("\n");
+            sb.append("Department: ").append(file.getDepartment()).append("\n");
+            sb.append("Expiry    : ").append(file.getExpiryTime() != null
+                    ? file.getExpiryTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    : "N/A").append("\n");
+            sb.append("Views     : ").append(file.getViewCount()).append("/")
+                    .append(file.getMaxViews()).append("\n");
+            sb.append("Versions  : ").append(file.getVersions().size()).append("\n");
+            sb.append("Deleted   : ").append(file.isDeleted()).append("\n");
+            sb.append("Revoked   : ").append(file.isAccessRevoked()).append("\n");
+            sb.append("---------------------------\n");
         }
-    }
-
-    private void log(String message) {
-        outputArea.append(message + "\n");
-        outputArea.setCaretPosition(outputArea.getDocument().getLength());
-    }
-
-    private void showError(String message) {
-        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
-    }
-
-    private String formatDateTime(LocalDateTime time) {
-        if (time == null) {
-            return "N/A";
-        }
-        return time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new SFTSGui().setVisible(true));
+        return sb.toString();
     }
 }

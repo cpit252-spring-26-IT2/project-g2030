@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  er-server:
+    build: .
+    container_name: er-server
+    command: ["java", "-cp", "target/classes", "sa.edu.kau.fcit.cpit252.project.ServerLauncher", "ER"]
+    ports:
+      - "9090:9090"
+
+  lab-server:
+    build: .
+    container_name: lab-server
+    command: ["java", "-cp", "target/classes", "sa.edu.kau.fcit.cpit252.project.ServerLauncher", "Laboratory"]
+    ports:
+      - "9091:9091"
+
+  radiology-server:
+    build: .
+    container_name: radiology-server
+    command: ["java", "-cp", "target/classes", "sa.edu.kau.fcit.cpit252.project.ServerLauncher", "Radiology"]
+    ports:
+      - "9092:9092"
+
+  pharmacy-server:
+    build: .
+    container_name: pharmacy-server
+    command: ["java", "-cp", "target/classes", "sa.edu.kau.fcit.cpit252.project.ServerLauncher", "Pharmacy"]
+    ports:
+      - "9093:9093"

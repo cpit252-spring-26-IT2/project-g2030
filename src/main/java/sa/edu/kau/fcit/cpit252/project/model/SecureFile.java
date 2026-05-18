@@ -86,7 +86,17 @@ public class SecureFile {
     }
 
     public boolean openFile() {
-        if (!canBeOpened()) {
+        if (deleted) return false;
+
+        if (accessRevoked) return false;
+
+        if (expiryTime != null && LocalDateTime.now().isAfter(expiryTime)) {
+            accessRevoked = true;
+            return false;
+        }
+
+        if (maxViews > 0 && viewCount >= maxViews) {
+            accessRevoked = true;
             return false;
         }
 

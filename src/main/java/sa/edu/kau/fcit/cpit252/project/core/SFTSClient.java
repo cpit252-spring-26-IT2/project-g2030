@@ -9,169 +9,133 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.util.Map;
 
 public class SFTSClient {
+    private static final String[] ALLOWED_USERS = {"2338742", "2339709", "2337862"};
+    private static final String[] DEPARTMENTS   = {"ER", "Laboratory", "Radiology", "Pharmacy"};
+    private static String loggedInUser;
 
-    private static final String[] DEPARTMENTS = {
-            "Laboratory", "ER", "Radiology", "Pharmacy"
-    };
+    private static final Map<String, Integer> DEPT_PORTS = Map.of(
+            "ER",         9090,
+            "Laboratory", 9091,
+            "Radiology",  9092,
+            "Pharmacy",   9093
+    );
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(SFTSClient::showClientGUI);
+    public static void launchClient() {
+        SwingUtilities.invokeLater(() -> {
+            if (loggedInUser == null) loggedInUser = login();
+            if (loggedInUser == null) return;
+            showClientGUI();
+        });
+    }
+
+    private static String login() {
+        JPanel p = new JPanel(new GridLayout(2, 2, 8, 8));
+        JTextField u      = new JTextField();
+        JPasswordField pw = new JPasswordField();
+        p.add(new JLabel("User ID:"));  p.add(u);
+        p.add(new JLabel("Password:")); p.add(pw);
+        int r = JOptionPane.showConfirmDialog(null, p, "Client Login",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (r != JOptionPane.OK_OPTION) return null;
+        String user = u.getText().trim();
+        String pass = new String(pw.getPassword()).trim();
+        if (!"sfts1234".equals(pass)) {
+            JOptionPane.showMessageDialog(null, "Invalid credentials.");
+            return null;
+        }
+        for (String a : ALLOWED_USERS) if (a.equals(user)) return user;
+        JOptionPane.showMessageDialog(null, "User not allowed.");
+        return null;
     }
 
     private static void showClientGUI() {
-        JFrame frame = new JFrame("SFTS Client - Send Secure File");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(500, 420);
+        JFrame frame = new JFrame("SFTS Client — Send Secure File");
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setSize(520, 460);
         frame.setLayout(new BorderLayout(10, 10));
 
-        // ─── العنوان ───────────────────────────────────────────
-        JLabel title = new JLabel("SFTS Secure File Sender", SwingConstants.CENTER);
-        title.setFont(new Font("Arial", Font.BOLD, 18));
-        title.setForeground(new Color(30, 30, 150));
-        frame.add(title, BorderLayout.NORTH);
+        JPanel form = new JPanel(new GridLayout(0, 2, 10, 10));
+        form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // ─── الفورم ────────────────────────────────────────────
-        JPanel formPanel = new JPanel(new GridLayout(0, 2, 10, 10));
-        formPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
-
-        // اختيار الملف
-        JLabel fileLabel = new JLabel("Selected File:");
         JTextField filePathField = new JTextField("No file selected");
         filePathField.setEditable(false);
-        filePathField.setBackground(new Color(240, 240, 240));
+        JButton browseBtn             = new JButton("Browse...");
+        JComboBox<String> deptBox     = new JComboBox<>(DEPARTMENTS);
+        JTextField senderField        = new JTextField(loggedInUser);
+        senderField.setEditable(false);
+        JSpinner maxViewsSpinner      = new JSpinner(new SpinnerNumberModel(3, 1, 100, 1));
+        JSpinner expirySpinner        = new JSpinner(new SpinnerNumberModel(4, 1, 72, 1));
+        JCheckBox viewOnlyBox         = new JCheckBox("Enabled", true);
+        JLabel portLabel              = new JLabel("Port: " + DEPT_PORTS.get(DEPARTMENTS[0]));
 
-        JButton browseButton = new JButton("Browse...");
-        browseButton.setBackground(new Color(70, 130, 180));
-        browseButton.setForeground(Color.WHITE);
+        deptBox.addActionListener(e ->
+                portLabel.setText("Port: " + DEPT_PORTS.getOrDefault((String) deptBox.getSelectedItem(), 9090)));
 
-        // اختيار القسم
-        JLabel deptLabel = new JLabel("Department:");
-        JComboBox<String> deptComboBox = new JComboBox<>(DEPARTMENTS);
+        form.add(new JLabel("Selected File:"));  form.add(filePathField);
+        form.add(new JLabel(""));                form.add(browseBtn);
+        form.add(new JLabel("Department:"));     form.add(deptBox);
+        form.add(new JLabel("Target Port:"));    form.add(portLabel);
+        form.add(new JLabel("Sender ID:"));      form.add(senderField);
+        form.add(new JLabel("Max Views:"));      form.add(maxViewsSpinner);
+        form.add(new JLabel("Expiry (Hours):")); form.add(expirySpinner);
+        form.add(new JLabel("View Only Mode:")); form.add(viewOnlyBox);
 
-        // Sender ID
-        JLabel senderLabel = new JLabel("Sender ID:");
-        JTextField senderField = new JTextField();
+        JLabel hdr = new JLabel("SFTS Secure File Sender | User: " + loggedInUser, SwingConstants.CENTER);
+        hdr.setFont(new Font("Arial", Font.BOLD, 15));
+        frame.add(hdr, BorderLayout.NORTH);
+        frame.add(form, BorderLayout.CENTER);
 
-        // Max Views
-        JLabel maxViewsLabel = new JLabel("Max Views:");
-        JSpinner maxViewsSpinner = new JSpinner(new SpinnerNumberModel(3, 1, 100, 1));
+        JButton sendBtn = new JButton("Send Secure File");
+        frame.add(sendBtn, BorderLayout.SOUTH);
 
-        // Expiry Hours
-        JLabel expiryLabel = new JLabel("Expiry (Hours):");
-        JSpinner expirySpinner = new JSpinner(new SpinnerNumberModel(4, 1, 72, 1));
-
-        // View Only
-        JLabel viewOnlyLabel = new JLabel("View Only Mode:");
-        JCheckBox viewOnlyCheckBox = new JCheckBox("Enabled", true);
-
-        formPanel.add(fileLabel);
-        formPanel.add(filePathField);
-        formPanel.add(new JLabel());
-        formPanel.add(browseButton);
-        formPanel.add(deptLabel);
-        formPanel.add(deptComboBox);
-        formPanel.add(senderLabel);
-        formPanel.add(senderField);
-        formPanel.add(maxViewsLabel);
-        formPanel.add(maxViewsSpinner);
-        formPanel.add(expiryLabel);
-        formPanel.add(expirySpinner);
-        formPanel.add(viewOnlyLabel);
-        formPanel.add(viewOnlyCheckBox);
-
-        frame.add(formPanel, BorderLayout.CENTER);
-
-        // ─── زر الإرسال ────────────────────────────────────────
-        JButton sendButton = new JButton("Send Secure File");
-        sendButton.setFont(new Font("Arial", Font.BOLD, 16));
-        sendButton.setBackground(new Color(34, 139, 34));
-        sendButton.setForeground(Color.WHITE);
-        sendButton.setPreferredSize(new Dimension(0, 50));
-        frame.add(sendButton, BorderLayout.SOUTH);
-
-        // ─── File Chooser: PDF والصور فقط ──────────────────────
         final File[] selectedFile = {null};
-
-        browseButton.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser();
-            fileChooser.setDialogTitle("Select a PDF or Image File");
-            fileChooser.setAcceptAllFileFilterUsed(false);
-            fileChooser.addChoosableFileFilter(
-                    new FileNameExtensionFilter("PDF and Images (*.pdf, *.png, *.jpg, *.jpeg)",
-                            "pdf", "png", "jpg", "jpeg")
-            );
-
-            int result = fileChooser.showOpenDialog(frame);
-            if (result == JFileChooser.APPROVE_OPTION) {
-                selectedFile[0] = fileChooser.getSelectedFile();
+        browseBtn.addActionListener(e -> {
+            JFileChooser fc = new JFileChooser();
+            fc.setAcceptAllFileFilterUsed(false);
+            fc.addChoosableFileFilter(new FileNameExtensionFilter(
+                    "PDF and Images (*.pdf, *.png, *.jpg, *.jpeg)", "pdf", "png", "jpg", "jpeg"));
+            if (fc.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
+                selectedFile[0] = fc.getSelectedFile();
                 filePathField.setText(selectedFile[0].getName());
             }
         });
 
-        // ─── إرسال الملف ───────────────────────────────────────
-        sendButton.addActionListener(e -> {
+        sendBtn.addActionListener(e -> {
             if (selectedFile[0] == null) {
-                JOptionPane.showMessageDialog(frame, "Please select a file first.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(frame, "Please select a file first.");
                 return;
             }
-
-            String senderId = senderField.getText().trim();
-            if (senderId.isBlank()) {
-                JOptionPane.showMessageDialog(frame, "Please enter Sender ID.", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            String department = (String) deptComboBox.getSelectedItem();
-            int maxViews = (int) maxViewsSpinner.getValue();
-            int expiryHours = (int) expirySpinner.getValue();
-            boolean isViewOnly = viewOnlyCheckBox.isSelected();
-
-            sendButton.setEnabled(false);
-            sendButton.setText("Sending...");
+            String  department  = (String) deptBox.getSelectedItem();
+            int     targetPort  = DEPT_PORTS.getOrDefault(department, 9090);
+            int     maxViews    = (int) maxViewsSpinner.getValue();
+            int     expiryHours = (int) expirySpinner.getValue();
+            boolean isViewOnly  = viewOnlyBox.isSelected();
 
             new Thread(() -> {
                 try {
-                    byte[] originalBytes = Files.readAllBytes(selectedFile[0].toPath());
-
-                    System.out.println("Encrypting file...");
-                    byte[] encryptedBytes = SecurityManager.encryptData(originalBytes);
-
-                    try (Socket socket = new Socket("localhost", 9090);
+                    byte[] original  = Files.readAllBytes(selectedFile[0].toPath());
+                    byte[] encrypted = SecurityManager.encryptData(original);
+                    try (Socket socket = new Socket("localhost", targetPort);
                          DataOutputStream dos = new DataOutputStream(socket.getOutputStream())) {
-
                         dos.writeUTF(selectedFile[0].getName());
-                        dos.writeLong(encryptedBytes.length);
+                        dos.writeLong(encrypted.length);
                         dos.writeInt(expiryHours);
                         dos.writeInt(maxViews);
                         dos.writeBoolean(isViewOnly);
                         dos.writeUTF(department);
-                        dos.writeUTF(senderId);
-                        dos.write(encryptedBytes);
+                        dos.writeUTF(loggedInUser);
+                        dos.write(encrypted);
                         dos.flush();
                     }
-
-                    SwingUtilities.invokeLater(() -> {
-                        JOptionPane.showMessageDialog(frame,
-                                "File sent successfully!\n\nFile: " + selectedFile[0].getName()
-                                        + "\nDepartment: " + department
-                                        + "\nMax Views: " + maxViews
-                                        + "\nExpiry: " + expiryHours + " hours",
-                                "Success", JOptionPane.INFORMATION_MESSAGE);
-
-                        sendButton.setEnabled(true);
-                        sendButton.setText("Send Secure File");
-                    });
-
+                    SwingUtilities.invokeLater(() ->
+                            JOptionPane.showMessageDialog(frame,
+                                    "Sent to " + department + " server (port " + targetPort + ")"));
                 } catch (Exception ex) {
-                    SwingUtilities.invokeLater(() -> {
-                        JOptionPane.showMessageDialog(frame,
-                                "Error: " + ex.getMessage(),
-                                "Transfer Failed", JOptionPane.ERROR_MESSAGE);
-                        sendButton.setEnabled(true);
-                        sendButton.setText("Send Secure File");
-                    });
+                    SwingUtilities.invokeLater(() ->
+                            JOptionPane.showMessageDialog(frame, "Error: " + ex.getMessage()));
                 }
             }).start();
         });
