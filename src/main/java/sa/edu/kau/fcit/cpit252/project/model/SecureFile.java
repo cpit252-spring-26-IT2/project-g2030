@@ -11,6 +11,7 @@ public class SecureFile {
     private String department;
     private String ownerId;
     private String content;
+    private String lastViewerId;
 
     private boolean encrypted;
     private String encryptionType;
@@ -124,6 +125,7 @@ public class SecureFile {
         }
         return null;
     }
+
 
     public void moveToRecycleBin() {
         this.deleted = true;
@@ -317,4 +319,8 @@ public class SecureFile {
     public List<FileVersion> getVersions() {
         return versions;
     }
+
+    public String getLastViewerId() {return lastViewerId;}
+
+    public void setLastViewerId(String lastViewerId) { this.lastViewerId = lastViewerId;}
 }

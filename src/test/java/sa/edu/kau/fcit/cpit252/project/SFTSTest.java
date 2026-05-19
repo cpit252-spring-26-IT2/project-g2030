@@ -11,12 +11,7 @@ import sa.edu.kau.fcit.cpit252.project.model.FileBuilder;
 import sa.edu.kau.fcit.cpit252.project.model.FileVersion;
 import sa.edu.kau.fcit.cpit252.project.model.RecycleBinItem;
 import sa.edu.kau.fcit.cpit252.project.model.SecureFile;
-import sa.edu.kau.fcit.cpit252.project.observer.FileEvent;
-import sa.edu.kau.fcit.cpit252.project.observer.FileEventType;
-import sa.edu.kau.fcit.cpit252.project.observer.FileObserver;
-import sa.edu.kau.fcit.cpit252.project.observer.RecycleBinObserver;
-import sa.edu.kau.fcit.cpit252.project.observer.VersionObserver;
-import sa.edu.kau.fcit.cpit252.project.observer.ViewTrackingObserver;
+import sa.edu.kau.fcit.cpit252.project.observer.*;
 import sa.edu.kau.fcit.cpit252.project.proxy.DepartmentProxy;
 import sa.edu.kau.fcit.cpit252.project.security.SecurityManager;
 
@@ -34,7 +29,7 @@ public class SFTSTest {
     @BeforeEach
     void setUp() {
         lab = DepartmentFactory.getDepartment("LAB");
-        er = DepartmentFactory.getDepartment("ER");
+        er  = DepartmentFactory.getDepartment("ER");
 
         testFile = new FileBuilder()
                 .setFileId("TEST-001")
@@ -51,41 +46,47 @@ public class SFTSTest {
                 .build();
     }
 
+    // ── Builder ───────────────────────────────────────────────────────────────
     @Test
     void testBuilderCreatesSecureFileCorrectly() {
         assertNotNull(testFile);
-        assertEquals("TEST-001", testFile.getFileId());
-        assertEquals("Blood_Report.pdf", testFile.getFileName());
-        assertEquals("Laboratory", testFile.getDepartment());
-        assertEquals("Abdulaziz_Bukhari", testFile.getOwnerId());
-        assertEquals("Sensitive patient report", testFile.getContent());
+        assertEquals("TEST-001",                  testFile.getFileId());
+        assertEquals("Blood_Report.pdf",           testFile.getFileName());
+        assertEquals("Laboratory",                 testFile.getDepartment());
+        assertEquals("Abdulaziz_Bukhari",          testFile.getOwnerId());
+        assertEquals("Sensitive patient report",   testFile.getContent());
         assertTrue(testFile.isEncrypted());
-        assertEquals("AES-256", testFile.getEncryptionType());
+        assertEquals("AES-256",                    testFile.getEncryptionType());
         assertTrue(testFile.isViewOnly());
-        assertEquals(3, testFile.getMaxViews());
-        assertEquals("Viewer Copy", testFile.getWatermarkText());
+        assertEquals(3,                            testFile.getMaxViews());
+        assertEquals("Viewer Copy",                testFile.getWatermarkText());
     }
 
+    // ── Factory ───────────────────────────────────────────────────────────────
     @Test
     void testDepartmentFactory() {
         assertNotNull(lab);
         assertNotNull(er);
-        assertTrue(lab instanceof LabDepartment);
-        assertTrue(er instanceof ERDepartment);
+        assertInstanceOf(LabDepartment.class, lab);
+        assertInstanceOf(ERDepartment.class,  er);
     }
 
+    // ── Proxy ─────────────────────────────────────────────────────────────────
     @Test
     void testProxyAuthorizedAccessDoesNotCrash() {
-        Department authorizedProxy = new DepartmentProxy(lab, "Abdulaziz_Bukhari");
-        assertDoesNotThrow(() -> authorizedProxy.processFile(testFile));
+        Department proxy = new DepartmentProxy(lab, "Abdulaziz_Bukhari");
+        assertDoesNotThrow(() -> proxy.processFile(testFile));
     }
 
     @Test
-    void testProxyUnauthorizedAccessDoesNotCrash() {
-        Department unauthorizedProxy = new DepartmentProxy(lab, "Unknown_User");
-        assertDoesNotThrow(() -> unauthorizedProxy.processFile(testFile));
+    void testProxyUnauthorizedAccessBlocked() {
+        Department proxy = new DepartmentProxy(lab, "Unknown_User");
+        assertDoesNotThrow(() -> proxy.processFile(testFile));
+        // viewCount يجب أن يبقى 0 لأن الوصول محجوب
+        assertEquals(0, testFile.getViewCount());
     }
 
+    // ── View Limit ────────────────────────────────────────────────────────────
     @Test
     void testFileOpenAndViewLimit() {
         SecureFile limitedFile = new FileBuilder()
@@ -100,13 +101,17 @@ public class SFTSTest {
 
         assertTrue(limitedFile.canBeOpened());
         assertTrue(limitedFile.openFile());
+        assertEquals(1, limitedFile.getViewCount());
 
         assertTrue(limitedFile.canBeOpened());
         assertTrue(limitedFile.openFile());
+        assertEquals(2, limitedFile.getViewCount());
 
         assertFalse(limitedFile.canBeOpened());
+        assertTrue(limitedFile.isAccessRevoked());
     }
 
+    // ── Expiry ────────────────────────────────────────────────────────────────
     @Test
     void testTimeLimitedAccess() {
         SecureFile validFile = new FileBuilder()
@@ -130,8 +135,10 @@ public class SFTSTest {
                 .build();
 
         assertFalse(expiredFile.canBeOpened());
+        assertTrue(expiredFile.isAccessRevoked());
     }
 
+    // ── Encryption ────────────────────────────────────────────────────────────
     @Test
     void testEncryptionDecryption() throws Exception {
         String originalData = "Sensitive Patient Record Content";
@@ -144,14 +151,15 @@ public class SFTSTest {
         assertEquals(originalData, new String(decrypted));
     }
 
+    // ── Singleton ─────────────────────────────────────────────────────────────
     @Test
     void testSingletonAuditLogger() {
         AuditLogger instance1 = AuditLogger.getInstance();
         AuditLogger instance2 = AuditLogger.getInstance();
-
         assertSame(instance1, instance2);
     }
 
+    // ── Observer Manual ───────────────────────────────────────────────────────
     @Test
     void testObserverNotificationManual() {
         AtomicBoolean notified = new AtomicBoolean(false);
@@ -163,60 +171,57 @@ public class SFTSTest {
             }
         };
 
-        FileEvent event = new FileEvent(
+        testObserver.update(new FileEvent(
                 FileEventType.FILE_OPENED,
                 testFile,
                 "Viewer123",
                 "File opened successfully"
-        );
-
-        testObserver.update(event);
+        ));
 
         assertTrue(notified.get());
     }
 
+    // ── Version Observer ──────────────────────────────────────────────────────
     @Test
     void testVersionObserver() {
         VersionObserver versionObserver = new VersionObserver();
 
-        FileEvent updateEvent = new FileEvent(
+        versionObserver.update(new FileEvent(
                 FileEventType.FILE_UPDATED,
                 testFile,
                 "Abdulaziz_Bukhari",
                 "Updated file content"
-        );
-
-        versionObserver.update(updateEvent);
+        ));
 
         assertEquals(1, testFile.getVersions().size());
 
-        FileVersion version = (FileVersion) testFile.getVersions().get(0);
-        assertEquals(1, version.getVersionNumber());
+        FileVersion version = testFile.getVersions().get(0);
+        assertEquals(1,                          version.getVersionNumber());
         assertEquals("Sensitive patient report", version.getContentSnapshot());
-        assertEquals("Abdulaziz_Bukhari", version.getUpdatedBy());
+        assertEquals("Abdulaziz_Bukhari",        version.getUpdatedBy());
     }
 
+    // ── Recycle Bin Observer ──────────────────────────────────────────────────
     @Test
     void testRecycleBinObserver() {
         RecycleBinObserver recycleBinObserver = new RecycleBinObserver();
 
-        FileEvent deleteEvent = new FileEvent(
+        recycleBinObserver.update(new FileEvent(
                 FileEventType.FILE_DELETED,
                 testFile,
                 "Motaz_Alsayed",
                 "File moved to recycle bin"
-        );
-
-        recycleBinObserver.update(deleteEvent);
+        ));
 
         assertTrue(testFile.isDeleted());
         assertEquals(1, recycleBinObserver.getRecycleBin().size());
 
-        RecycleBinItem item = (RecycleBinItem) recycleBinObserver.getRecycleBin().get(0);
-        assertEquals(testFile, item.getFile());
+        RecycleBinItem item = recycleBinObserver.getRecycleBin().get(0);
+        assertEquals(testFile,       item.getFile());
         assertEquals("Motaz_Alsayed", item.getDeletedBy());
     }
 
+    // ── View Tracking Observer ────────────────────────────────────────────────
     @Test
     void testViewTrackingObserver() {
         ViewTrackingObserver observer = new ViewTrackingObserver();
@@ -230,14 +235,12 @@ public class SFTSTest {
                 .setMaxViews(1)
                 .build();
 
-        FileEvent openEvent = new FileEvent(
+        observer.update(new FileEvent(
                 FileEventType.FILE_OPENED,
                 file,
                 "ViewerX",
                 "File viewed"
-        );
-
-        observer.update(openEvent);
+        ));
 
         assertEquals(1, file.getViewCount());
         assertTrue(file.isAccessRevoked());
