@@ -24,10 +24,12 @@ public class RecycleBinObserver implements FileObserver {
     }
 
     public SecureFile restoreFile(String fileId) {
-        for (RecycleBinItem item : recycleBin) {
+        var it = recycleBin.iterator();
+        while (it.hasNext()) {
+            RecycleBinItem item = it.next();
             if (item.getFile().getFileId().equals(fileId)) {
                 item.getFile().setDeleted(false);
-                recycleBin.remove(item);
+                it.remove(); // بدل recycleBin.remove(item)
                 return item.getFile();
             }
         }

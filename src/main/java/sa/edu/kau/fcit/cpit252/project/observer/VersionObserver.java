@@ -11,7 +11,8 @@ public class VersionObserver implements FileObserver {
             SecureFile file = event.getSecureFile();
             int nextVersion = file.getVersions().size() + 1;
             FileVersion version = new FileVersion(nextVersion, file.getContent(), event.getActorId());
-            file.getVersions().add(version);
+            file.addVersion(file.getContent(), event.getActorId());
+
         }
     }
 }

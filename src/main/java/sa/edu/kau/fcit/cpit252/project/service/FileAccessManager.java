@@ -37,15 +37,21 @@ public class FileAccessManager implements FileSubject {
             return false;
         }
 
-        if (file.isAccessRevoked()) {
-            notifyObservers(new FileEvent(FileEventType.ACCESS_DENIED, file, userId, "View limit reached"));
-            return false;
-        }
-
         if (file.getExpiryTime() != null && LocalDateTime.now().isAfter(file.getExpiryTime())) {
             file.setAccessRevoked(true);
             notifyObservers(new FileEvent(FileEventType.FILE_EXPIRED, file, userId, "Time-limited access expired"));
             notifyObservers(new FileEvent(FileEventType.ACCESS_DENIED, file, userId, "Expired file"));
+            return false;
+        }
+
+        if (file.getMaxViews() > 0 && file.getViewCount() >= file.getMaxViews()) {
+            file.setAccessRevoked(true);
+            notifyObservers(new FileEvent(FileEventType.ACCESS_DENIED, file, userId, "View limit reached"));
+            return false;
+        }
+
+        if (file.isAccessRevoked()) {
+            notifyObservers(new FileEvent(FileEventType.ACCESS_DENIED, file, userId, "Access revoked"));
             return false;
         }
 
@@ -55,8 +61,7 @@ public class FileAccessManager implements FileSubject {
 
     public void updateFile(SecureFile file, String userId, String newContent) {
         file.setContent(newContent);
-        notifyObservers(new FileEvent(FileEventType.FILE_UPDATED, file, userId, "File content updated"));
-        notifyObservers(new FileEvent(FileEventType.VERSION_CREATED, file, userId, "New file version saved"));
+        notifyObservers(new FileEvent(FileEventType.FILE_UPDATED, file, userId, "Content updated & version saved"));
     }
 
     public void deleteFile(SecureFile file, String userId) {

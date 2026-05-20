@@ -3,6 +3,7 @@ package sa.edu.kau.fcit.cpit252.project.observer;
 import sa.edu.kau.fcit.cpit252.project.model.SecureFile;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class FileEvent {
     private final FileEventType eventType;
@@ -19,6 +20,14 @@ public class FileEvent {
         this.timestamp = LocalDateTime.now();
     }
 
+    @Override
+    public String toString() {
+        return String.format("[%s] %s — %s (%s)",
+                timestamp.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
+                eventType,
+                secureFile.getFileName(),
+                actorId);
+    }
     public FileEventType getEventType() {
         return eventType;
     }
