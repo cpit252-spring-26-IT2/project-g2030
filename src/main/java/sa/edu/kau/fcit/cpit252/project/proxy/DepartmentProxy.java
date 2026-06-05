@@ -24,21 +24,12 @@ public class DepartmentProxy implements Department {
 
         if (!hasAccess()) {
             audit.log(currentUser, "SECURITY ALERT: Access Denied to " + realDepartment.getName());
-            System.err.println("Transaction Blocked: " + currentUser + " does not have clearance for " + realDepartment.getName());
             return;
         }
 
-        if (!file.openFile()) {
-            audit.log(currentUser, "ALERT: Max view limit reached for file: " + file.getFileName());
-            System.err.println("Access Revoked: The viewing limit for " + file.getFileName() + " has been reached.");
+        if (!file.canBeOpened()) {
+            audit.log(currentUser, "ALERT: Max view limit reached for: " + file.getFileName());
             return;
-        }
-
-        if (file.isViewOnly()) {
-            audit.log(currentUser, "Opened file in View-Only Secure Web Viewer");
-            System.out.println("System Notice: " + file.getFileName() + " is opened in a secure web-based viewer (Downloads Disabled).");
-        } else {
-            audit.log(currentUser, "Access Granted with full permissions");
         }
 
         realDepartment.processFile(file);
