@@ -90,7 +90,7 @@ This pattern improves modularity by separating file event generation from event 
 > *![Main Launcher](screenshots/launcher.png)*
 
 ### Server View 
-> *![Server View](screenshots/server.png)*
+> *![Server View](screenshots/Server.png)*
 
 ### Client 
 > *![Client](screenshots/client.png)*
